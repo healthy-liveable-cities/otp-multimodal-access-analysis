@@ -1,0 +1,6 @@
+graphs/*/
+lucene/
+otp-*-shaded.jar
+jython-*.jar
+ODMGenerator/.project
+ODMGenerator/.pydevproject
