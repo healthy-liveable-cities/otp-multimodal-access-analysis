@@ -96,6 +96,16 @@ parser.add_argument('--combinations',
                     help='Create all combinations of supplied destination list',
                     default=False, 
                     action='store_true')
+parser.add_argument('--id_names', 
+                    help='Names of respective ID fields for source Origin and Destination csv files (default: GEOID,GEOID)',
+                    nargs='*',
+                    type = str,
+                    default=['GEOID','GEOID'])
+parser.add_argument('--latlon_names', 
+                    help='Names of latitude and longitude fields in source Origin and Destination csv fields (default: lat,lon)',
+                    nargs='*',
+                    type = str,
+                    default=['lat','lon'])
 parser.add_argument('--wideform', 
                     help='Transpose data to wideform from longform main output',
                     default=False, 
@@ -123,11 +133,14 @@ req.setMaxTimeSec(args.max_time)
 # set maximum walking distance
 req.setMaxWalkDistance(args.max_walking_distance)
 
-# Read Points of Destination - The file points.csv contains the columns GEOID, X and Y.
-# origins = otp.loadCSVPopulation(os.path.join(args.proj_dir,args.originsfile), 'lat', 'lon')
-# dests = otp.loadCSVPopulation(os.path.join(args.proj_dir,args.destsfile), 'lat', 'lon')
-origins = otp.loadCSVPopulation(args.originsfile, 'lat', 'lon')
-dests = otp.loadCSVPopulation(args.destsfile, 'lat', 'lon')
+# Read Points of Destination - The file points.csv, drawing on defaults or specified IDs, latitude and longitude
+orig_id = args.id_names[0]
+dest_id = args.id_names[1]
+lat = args.latlon_names[0]
+lon = args.latlon_names[1]
+
+origins = otp.loadCSVPopulation(args.originsfile, lat, lon)
+dests   = otp.loadCSVPopulation(args.destsfile, lat, lon)
 
 # Process modes for OTP
 if args.combinations is False:
@@ -170,7 +183,7 @@ for dep in date_list:
                     args.departure_time.hour,
                     args.departure_time.minute,
                     args.departure_time.second)
-
+    
     # One-to-one matching
     if args.matching == 'one-to-one':
         index = 0;
@@ -178,7 +191,7 @@ for dep in date_list:
             index += 1
             req.setOrigin(origin)
             for transport_mode in modes:
-                if (transport_mode not in run_once) or (transport_mode in run_once and i == 0)):
+                if (transport_mode not in run_once) or (transport_mode in run_once and i == 0):
                     print("Processing {mode}: {index} {origin} to {dest}".format(index=index,origin=origin,dest=dest,mode=transport_mode))
                     # define transport mode
                     req.setModes(transport_mode)
@@ -188,26 +201,26 @@ for dep in date_list:
                     if spt is None: 
                         print "SPT is None"
                         continue
-    	            
+                    
                     # Evaluate the SPT for all points
                     result = spt.eval(dest)
                     # Add a new row of result in the CSV output
                     if result is None:
-                        matrixCsv.addRow([ origin.getStringData('GEOID'), dest.getStringData('GEOID'),dep.isoformat(),'"{}"'.format(transport_mode), 0 , 'OUT_OF_BOUNDS'])
-                    else:                                                                             
-                    matrixCsv.addRow([ origin.getStringData('GEOID'), dest.getStringData('GEOID'),dep.isoformat(), '"{}"'.format(transport_mode),result.getWalkDistance() , result.getTime()/60.0])
+                        matrixCsv.addRow([ origin.getStringData(orig_id), dest.getStringData(dest_id),dep.isoformat(),'"{}"'.format(transport_mode), 0 , 'OUT_OF_BOUNDS'])
+                    else:
+                        matrixCsv.addRow([ origin.getStringData(orig_id), dest.getStringData(dest_id),dep.isoformat(), '"{}"'.format(transport_mode),result.getWalkDistance() , result.getTime()/60.0])
     
     # One-to-many matching
     if args.matching == 'one-to-many':
         all_dests = []
         for dest in dests:
-            all_dests.append(dest.getStringData('GEOID'))
-    
+            all_dests.append(dest.getStringData(dest_id))
+        
         for index, origin in enumerate(origins):
             found_dests = []
             req.setOrigin(origin)
             for transport_mode in modes:
-                if (transport_mode not in run_once) or (transport_mode in run_once and i == 0)):
+                if (transport_mode not in run_once) or (transport_mode in run_once and i == 0):
                     print("Processing {mode}: {index} {origin}".format(index=index,origin=origin,mode=transport_mode))
                     # define transport mode
                     req.setModes(transport_mode)
@@ -217,16 +230,16 @@ for dep in date_list:
                     if spt is None: 
                         print "SPT is None"
                         continue
-    	            
+                    
                     # Evaluate the SPT for all points
                     result = spt.eval(dests)
                     # Add a new row of result in the CSV output
                     for r in result:
-                        found_dests.append(r.getIndividual().getStringData('GEOID'))
-                        matrixCsv.addRow([ origin.getStringData('GEOID'),r.getIndividual().getStringData('GEOID'),dep.isoformat(),  '"{}"'.format(transport_mode), r.getWalkDistance() , r.getTime()/60.0])
+                        found_dests.append(r.getIndividual().getStringData(dest_id))
+                        matrixCsv.addRow([ origin.getStringData(orig_id),r.getIndividual().getStringData(dest_id),dep.isoformat(),  '"{}"'.format(transport_mode), r.getWalkDistance() , r.getTime()/60.0])
                     
                     for dest in list(set(all_dests) - set(found_dests)):                                          
-                        matrixCsv.addRow([ origin.getStringData('GEOID'),dest,dep.isoformat(),  '"{}"'.format(transport_mode), 0 , 'OUT_OF_BOUNDS'])
+                        matrixCsv.addRow([ origin.getStringData(orig_id),dest,dep.isoformat(),  '"{}"'.format(transport_mode), 0 , 'OUT_OF_BOUNDS'])
     i+=1
 
 # Save the result
