@@ -83,6 +83,11 @@ parser.add_argument('--mode_list',
                     nargs='*',
                     type = str,
                     default=['WALK','BUS','RAIL'])
+parser.add_argument('--run_once',
+                    help='Modes for which transport is only evaluated at one time point.  For example, you may be evaluating difference between on-peak and off-peak travel times, however no difference would be expected for walking or cycling, so these may be excluded (e.g. WALK,BICYCLE).  Valid options are as per mod_list; the default is an empty list.',
+                    nargs='*',
+                    type = str,
+                    default=[])
 parser.add_argument('--matching',
                     help='How origins and destinations should be matched. Can be either one-to-one or one-to-many (default: one-to-many)',
                     default='one-to-many',
@@ -140,6 +145,8 @@ else:
   # e.g. 'WALK,BUS,RAIL' becomes ['WALK', 'BUS', 'RAIL', 'WALK,BUS', 'WALK,RAIL', 'BUS,RAIL', 'WALK,BUS,RAIL']
   modes = [','.join(x) for x in reduce(lambda acc, x: acc + list(itertools.combinations(args.mode_list, x)), range(1, len(args.mode_list) + 1), [])]
 
+run_once = args.run_once  
+  
 # Create a CSV output
 matrixCsv = otp.createCSVOutput()
 matrixCsv.setHeader([ 'Origin', 'Destination', 'Departure_time','Transport_mode(s)','Walk_distance (meters)', 'Travel_time (minutes)' ])
@@ -154,6 +161,7 @@ if args.duration_reps[0] > 0:
         new_datetime += timedelta(hours=args.duration_reps[1])
         date_list.append(new_datetime)
 
+i = 0        
 for dep in date_list:
     # Set departure time
     req.setDateTime(args.departure_time.year,
@@ -170,22 +178,23 @@ for dep in date_list:
             index += 1
             req.setOrigin(origin)
             for transport_mode in modes:
-                print("Processing {mode}: {index} {origin} to {dest}".format(index=index,origin=origin,dest=dest,mode=transport_mode))
-                # define transport mode
-                req.setModes(transport_mode)
-                
-                spt = router.plan(req)
-                
-                if spt is None: 
-                    print "SPT is None"
-                    continue
-    	        
-                # Evaluate the SPT for all points
-                result = spt.eval(dest)
-                # Add a new row of result in the CSV output
-                if result is None:
-                    matrixCsv.addRow([ origin.getStringData('GEOID'), dest.getStringData('GEOID'),dep.isoformat(),'"{}"'.format(transport_mode), 0 , 'OUT_OF_BOUNDS'])
-                else:                                                                             
+                if (transport_mode not in run_once) or (transport_mode in run_once and i == 0)):
+                    print("Processing {mode}: {index} {origin} to {dest}".format(index=index,origin=origin,dest=dest,mode=transport_mode))
+                    # define transport mode
+                    req.setModes(transport_mode)
+                    
+                    spt = router.plan(req)
+                    
+                    if spt is None: 
+                        print "SPT is None"
+                        continue
+    	            
+                    # Evaluate the SPT for all points
+                    result = spt.eval(dest)
+                    # Add a new row of result in the CSV output
+                    if result is None:
+                        matrixCsv.addRow([ origin.getStringData('GEOID'), dest.getStringData('GEOID'),dep.isoformat(),'"{}"'.format(transport_mode), 0 , 'OUT_OF_BOUNDS'])
+                    else:                                                                             
                     matrixCsv.addRow([ origin.getStringData('GEOID'), dest.getStringData('GEOID'),dep.isoformat(), '"{}"'.format(transport_mode),result.getWalkDistance() , result.getTime()/60.0])
     
     # One-to-many matching
@@ -198,25 +207,27 @@ for dep in date_list:
             found_dests = []
             req.setOrigin(origin)
             for transport_mode in modes:
-                print("Processing {mode}: {index} {origin}".format(index=index,origin=origin,mode=transport_mode))
-                # define transport mode
-                req.setModes(transport_mode)
-                
-                spt = router.plan(req)
-                
-                if spt is None: 
-                    print "SPT is None"
-                    continue
-    	        
-                # Evaluate the SPT for all points
-                result = spt.eval(dests)
-                # Add a new row of result in the CSV output
-                for r in result:
-                    found_dests.append(r.getIndividual().getStringData('GEOID'))
-                    matrixCsv.addRow([ origin.getStringData('GEOID'),r.getIndividual().getStringData('GEOID'),dep.isoformat(),  '"{}"'.format(transport_mode), r.getWalkDistance() , r.getTime()/60.0])
-                
-                for dest in list(set(all_dests) - set(found_dests)):                                          
-                    matrixCsv.addRow([ origin.getStringData('GEOID'),dest,dep.isoformat(),  '"{}"'.format(transport_mode), 0 , 'OUT_OF_BOUNDS'])
+                if (transport_mode not in run_once) or (transport_mode in run_once and i == 0)):
+                    print("Processing {mode}: {index} {origin}".format(index=index,origin=origin,mode=transport_mode))
+                    # define transport mode
+                    req.setModes(transport_mode)
+                    
+                    spt = router.plan(req)
+                    
+                    if spt is None: 
+                        print "SPT is None"
+                        continue
+    	            
+                    # Evaluate the SPT for all points
+                    result = spt.eval(dests)
+                    # Add a new row of result in the CSV output
+                    for r in result:
+                        found_dests.append(r.getIndividual().getStringData('GEOID'))
+                        matrixCsv.addRow([ origin.getStringData('GEOID'),r.getIndividual().getStringData('GEOID'),dep.isoformat(),  '"{}"'.format(transport_mode), r.getWalkDistance() , r.getTime()/60.0])
+                    
+                    for dest in list(set(all_dests) - set(found_dests)):                                          
+                        matrixCsv.addRow([ origin.getStringData('GEOID'),dest,dep.isoformat(),  '"{}"'.format(transport_mode), 0 , 'OUT_OF_BOUNDS'])
+    i+=1
 
 # Save the result
 matrixCsv.save(args.outfile)
