@@ -84,7 +84,7 @@ parser.add_argument('--mode_list',
                     type = str,
                     default=['WALK','BUS','RAIL'])
 parser.add_argument('--run_once',
-                    help='Modes for which transport is only evaluated at one time point.  For example, you may be evaluating difference between on-peak and off-peak travel times, however no difference would be expected for walking or cycling, so these may be excluded (e.g. WALK,BICYCLE).  Valid options are as per mod_list; the default is an empty list.',
+                    help='Modes for which transport is only evaluated at one time point.  For example, you may be evaluating difference between on-peak and off-peak travel times, however no difference would be expected for walking or cycling, so these may be excluded (e.g. WALK BICYCLE).  Valid options are as per mod_list; the default is an empty list.',
                     nargs='*',
                     type = str,
                     default=[])
@@ -97,12 +97,12 @@ parser.add_argument('--combinations',
                     default=False, 
                     action='store_true')
 parser.add_argument('--id_names', 
-                    help='Names of respective ID fields for source Origin and Destination csv files (default: GEOID,GEOID)',
+                    help='Names of respective ID fields for source Origin and Destination csv files (default: GEOID GEOID)',
                     nargs='*',
                     type = str,
                     default=['GEOID','GEOID'])
 parser.add_argument('--latlon_names', 
-                    help='Names of latitude and longitude fields in source Origin and Destination csv fields (default: lat,lon)',
+                    help='Names of latitude and longitude fields in source Origin and Destination csv fields (default: lat lon)',
                     nargs='*',
                     type = str,
                     default=['lat','lon'])
