@@ -142,7 +142,7 @@ else:
 
 # Create a CSV output
 matrixCsv = otp.createCSVOutput()
-matrixCsv.setHeader([ 'Origin', 'Destination', 'Departure_time','Transport_mode(s)','Walk_distance (meters)', 'Travel_time (seconds)' ])
+matrixCsv.setHeader([ 'Origin', 'Destination', 'Departure_time','Transport_mode(s)','Walk_distance (meters)', 'Travel_time (minutes)' ])
 
 # start_date = datetime.now()
 start_datetime = args.departure_time
