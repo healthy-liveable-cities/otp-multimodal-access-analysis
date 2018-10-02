@@ -1,16 +1,33 @@
 # !/usr/bin/jython
 
-# Commands to run the script
-# OD matrix for departure times every half hour from 7.30 for 2 hours from SA2 origins to SA2 destinations 
-# using chaining of 'WALK,BUS,RAIL' 'WALK,BUS', 'WALK,RAIL', 'WALK', 'CYCLE':
-# CLASSPATH=../otp-0.19.0-shaded.jar jython -J-Xmx7G odm.py --departure_time 2018-09-12-07:30:00 --duration_reps 2 .5 --originsfile graphs/aus_vic_melb_20180911/SA2_origins_manual.csv --destsfile graphs/aus_vic_melb_20180911/SA2_destinations_manual.csv --outfile graphs/aus_vic_melb_20180911/SA2_SA2_ODM_repetition_test.csv --mode_list 'WALK,BUS,RAIL' 'WALK,BUS', 'WALK,RAIL', 'WALK', 'CYCLE'
-#
-# Or, more broadly using the run-top.sh wrapper s
-# ./run-otp.sh  -d aus_vic_melb_20180911 -p melb_gccsa_2016_10000m_20180208.pbf -t gtfs_aus_vic_melb_20180911.zip -w "--departure_time 2018-09-12-07:30:00 --duration_reps 2 .5 --originsfile graphs/aus_vic_melb_20180911/SA2_origins_manual.csv --destsfile graphs/aus_vic_melb_20180911/SA2_destinations_manual.csv --outfile graphs/aus_vic_melb_20180911/SA2_SA2_ODM_repetition_test.csv --mode_list 'WALK,BUS,RAIL' 'WALK,BUS', 'WALK,RAIL', 'WALK', 'CYCLE'"
-# Or, to generate combinations
-# ./run-otp.sh  -d aus_vic_melb_20180911 -p melb_gccsa_2016_10000m_20180208.pbf -t gtfs_aus_vic_melb_20180911.zip -w "--departure_time 2018-09-12-07:30:00 --duration_reps 2 .5 --originsfile graphs/aus_vic_melb_20180911/SA2_origins_manual.csv --destsfile graphs/aus_vic_melb_20180911/SA2_destinations_manual.csv --outfile graphs/aus_vic_melb_20180911/SA2_SA2_ODM_repetition_test.csv --mode_list WALK BUS RAIL --combinations"
-# Or, using default mode ('WALK,BUS,RAIL'):
-# ./run-otp.sh  -d aus_vic_melb_20180911 -p melb_gccsa_2016_10000m_20180208.pbf -t gtfs_aus_vic_melb_20180911.zip -w "--departure_time 2018-09-12-07:30:00 --duration_reps 2 .5 --originsfile graphs/aus_vic_melb_20180911/SA2_origins_manual.csv --destsfile graphs/aus_vic_melb_20180911/SA2_destinations_manual.csv --outfile graphs/aus_vic_melb_20180911/SA2_SA2_ODM_repetition_test.csv"
+# This Jython script is run via run-otp.should
+# It assumes 
+#     - OTP, Jython and Sqlite jars are acquired
+#     - required input files are present and accurately specified as arguments
+################################################################################################
+# Example usage from Bash shell:
+################################################################################################
+# odm_args="--departure_time 2018-09-27-08:00:00                                               \
+#           --duration_reps 2 2                                                                \
+#           --max_time 7200                                                                    \
+#           --max_walking_distance 500                                                         \
+#           --matching one-to-many                                                             \
+#           --originsfile graphs/sa1_dzn_modes_melb_2016/SA1_2016_melb_gccsa_10km_epsg4326.csv \
+#           --destsfile graphs/sa1_dzn_modes_melb_2016/DZN_2016_melb_gccsa_10km_epsg4326.csv   \
+#           --outdb graphs/sa1_dzn_modes_melb_2016/SA1_DZN_2016_melb_gccsa_10km.db             \
+#           --outtable od_6modes_8am_10am                                                      \
+#           --mode_list WALK BICYCLE CAR 'WALK,BUS' 'WALK,TRAM' 'WALK,RAIL' 'WALK,TRANSIT'     \
+#           --run_once WALK BICYCLE CAR                                                        \
+#           --id_names SA1_MAINCODE_2016 DZN_CODE_2016                                         \
+#           --latlon_names Y X                                                                 \
+#           --wideform                                                                         \
+#           --proj_dir ./graphs/sa1_dzn_modes_melb_2016"
+# 
+# ./run-otp.sh  -d sa1_dzn_modes_melb_2016                \
+#               -p melb_gccsa_2016_10000m_20180208.pbf  \
+#               -t gtfs_aus_vic_melb_20180911.zip -w    \
+#               "$odm_args"
+###################################################################################################
 
 import argparse, time, os.path, sys, itertools
 from org.opentripplanner.scripting.api import OtpsEntryPoint
@@ -162,10 +179,10 @@ def populateTable(dbConn, feedstock):
         for origin, destination, dep_time, mode, dist_m, time_mins in feedstock:
             preppedStmt.setString(1, origin)
             preppedStmt.setString(2, destination)
-            preppedStmt.setInt   (3, dep_time)
+            preppedStmt.setString(3, dep_time)
             preppedStmt.setString(4, mode)
-            preppedStmt.setString(5, dist_m)
-            preppedStmt.setInt   (6, time_mins)
+            preppedStmt.setInt(5, dist_m)
+            preppedStmt.setReal(6, time_mins)
             preppedStmt.addBatch()
         dbConn.setAutoCommit(False)
         preppedStmt.executeBatch()
@@ -237,7 +254,7 @@ run_once = args.run_once
 # Save the parameters used to generate the result, along with date and time of analysis
 commencement = datetime.now().strftime("%Y%m%d_%H%M")
 parameter_file = open(os.path.join(args.proj_dir,
-                                   '{analysis}_parameters_{time}.txt'.format(analysis = os.path.basename(args.outfile),
+                                   '{analysis}_parameters_{time}.txt'.format(analysis = os.path.basename(args.outdb),
                                                                              time = commencement)), 
                       "w")
 parameter_file.write('{}\nCommenced at {}'.format('\n'.join(sys.argv[1:]),commencement))
@@ -340,7 +357,7 @@ dbConn.close()
 completion_time = datetime.now().strftime("%Y%m%d_%H%M")
 duration = time.time() - start_time
 parameter_file = open(os.path.join(args.proj_dir,
-                                   '{analysis}_parameters_{time}.txt'.format(analysis = os.path.basename(args.outfile),
+                                   '{analysis}_parameters_{time}.txt'.format(analysis = os.path.basename(args.outdb),
                                                                              time = commencement)), 
                       "a")
 parameter_file.write('\nCompleted at {}\nDuration (hours): {}'.format(completion,duration))
