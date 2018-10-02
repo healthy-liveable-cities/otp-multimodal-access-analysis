@@ -21,7 +21,7 @@ odm_args="--departure_time 2018-09-27-08:00:00                                  
           --originsfile graphs/sa1_dzn_modes_melb_2016/SA1_2016_melb_gccsa_10km_epsg4326.csv \
           --destsfile graphs/sa1_dzn_modes_melb_2016/DZN_2016_melb_gccsa_10km_epsg4326.csv   \
           --outdb graphs/sa1_dzn_modes_melb_2016/SA1_DZN_2016_melb_gccsa_10km.db             \
-          --outtable od_6modes_8am_10am                                                         \
+          --outtable od_6modes_8am_10am                                                      \
           --mode_list WALK BICYCLE CAR 'WALK,BUS' 'WALK,TRAM' 'WALK,RAIL' 'WALK,TRANSIT'     \
           --run_once WALK BICYCLE CAR                                                        \
           --id_names SA1_MAINCODE_2016 DZN_CODE_2016                                         \
@@ -29,7 +29,7 @@ odm_args="--departure_time 2018-09-27-08:00:00                                  
           --wideform                                                                         \
           --proj_dir ./graphs/sa1_dzn_modes_melb_2016"
 
-./run-otp.sh  -d sa1_dzn_modes_melb_2016                \
+./run-otp.sh  -d sa1_dzn_modes_melb_2016              \
               -p melb_gccsa_2016_10000m_20180208.pbf  \
               -t gtfs_aus_vic_melb_20180911.zip -w    \
               "$odm_args"

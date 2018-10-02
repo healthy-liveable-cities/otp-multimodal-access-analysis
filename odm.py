@@ -134,6 +134,9 @@ parser.add_argument('--wideform',
                     help='Transpose data to wideform from longform main output',
                     default=False, 
                     action='store_true')
+parser.add_argument('--cmd', 
+                    help='The command used to call the python script may be specified; if so it is recorded to the log txt file.',
+                    default=None)
 args = parser.parse_args()
 
 # Get the project name from the supplied project directory
@@ -182,7 +185,7 @@ def populateTable(dbConn, feedstock):
             preppedStmt.setString(3, dep_time)
             preppedStmt.setString(4, mode)
             preppedStmt.setInt(5, dist_m)
-            preppedStmt.setReal(6, time_mins)
+            preppedStmt.setDouble(6, time_mins)
             preppedStmt.addBatch()
         dbConn.setAutoCommit(False)
         preppedStmt.executeBatch()
@@ -257,9 +260,13 @@ parameter_file = open(os.path.join(args.proj_dir,
                                    '{analysis}_parameters_{time}.txt'.format(analysis = os.path.basename(args.outdb),
                                                                              time = commencement)), 
                       "w")
-parameter_file.write('{}\n\nCommenced at {}'.format('\n'.join(sys.argv[1:]),commencement))
+if args.cmd is not None:
+    cmd = args.cmd.replace('--','\\\n    --')
+    parameter_file.write('{}\n\nCommenced at {}'.format(cmd,commencement))
+else:
+    parameter_file.write('{}\n\nCommenced at {}'.format('\n'.join(sys.argv[1:]),commencement))
 parameter_file.close() 
-  
+
 # start_date = datetime.now()
 start_datetime = args.departure_time
 date_list = [start_datetime]
@@ -298,18 +305,19 @@ for dep in date_list:
                     spt = router.plan(req)
                     
                     if spt is None: 
-                        print "SPT is None"
+                        # print "SPT is None"
                         continue
                     
                     # Evaluate the SPT for all points
                     result = spt.eval(dest)
                     # Add a new row of result in the CSV output
                     if result is not None:
-                        r_destination = dest.getStringData(dest_id)
-                        r_mode        = '"{}"'.format(transport_mode)
-                        r_dist_m      = int(result.getWalkDistance())
-                        r_time_mins   = result.getTime()/60.0   
-                        set.append((r_origin, r_destination, r_dep_time, r_mode, r_dist_m, r_time_mins))
+                        if result.getWalkDistance() is not None:
+                            r_destination = dest.getStringData(dest_id)
+                            r_mode        = '"{}"'.format(transport_mode)
+                            r_dist_m      = int(result.getWalkDistance())
+                            r_time_mins   = result.getTime()/60.0   
+                            set.append((r_origin, r_destination, r_dep_time, r_mode, r_dist_m, r_time_mins))
             populateTable(dbConn, set)
             print("Completed in %g seconds" % (time.time() - set_time))
   
@@ -333,18 +341,19 @@ for dep in date_list:
                     spt = router.plan(req)
                     
                     if spt is None: 
-                        print "SPT is None"
+                        # print "SPT is None"
                         continue
                     
                     # Evaluate the SPT for all points
                     result = spt.eval(dests)
                     # Add a new row of result in the CSV output
                     for r in result:
-                        r_destination = r.getIndividual().getStringData(dest_id)
-                        r_mode        = '"{}"'.format(transport_mode)
-                        r_dist_m      = int(result.getWalkDistance())
-                        r_time_mins   = r.getTime()/60.0   
-                        set.append((r_origin, r_destination, r_dep_time, r_mode, r_dist_m, r_time_mins))
+                        if r.getWalkDistance() is not None:
+                            r_destination = r.getIndividual().getStringData(dest_id)
+                            r_mode        = '"{}"'.format(transport_mode)
+                            r_dist_m      = int(r.getWalkDistance())
+                            r_time_mins   = r.getTime()/60.0   
+                            set.append((r_origin, r_destination, r_dep_time, r_mode, r_dist_m, r_time_mins))
             populateTable(dbConn, set)
             print("Completed in %g seconds" % (time.time() - set_time))
     i+=1

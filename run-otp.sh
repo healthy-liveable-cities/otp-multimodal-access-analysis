@@ -152,6 +152,7 @@ calculateODM() {
   fi
 
   CMD="java  -Duser.timezone=Australia/Melbourne -cp $OTPJAR:$JYTHONJAR:$SQLITEJAR org.python.util.jython $ODM_SCRIPT $ODM_ARGS --proj_dir $PROJ_DIR"
+  CMD="$CMD --cmd '''$CMD'''"
   echo $CMD
   if [ $VERBOSE -eq 1 ] ; then echo $CMD; fi; eval $CMD
 }
