@@ -1,0 +1,60 @@
+The files
+
+DZN_2016_melb_gccsa_10km_epsg4326.csv
+SA1_2016_melb_gccsa_10km_epsg4326.csv
+
+were created 
+  -- using SA1 polygons from ABS in epsg 4283 from D:/ABS/data/2016/1270055001_asgs_2016_vol_1_geopackage/ASGS 2016 Volume 1 Geopackage/ASGS 2016 Volume 1.gpkg
+  -- using DZN polygons from ABS in epsg 4283 from D:/ABS/data/2016/80000_dzn_2016_aust_geopackage/ASGS 2016 DZN.gpkg
+  -- the Melbourne GCCSA 10km boundary buffered by 10km (sourced from National Liveability 2016 project, but otherwise derived from ABS data) in epsg 4283
+  -- SA1 and DZN polygons were selected based on intersection with the study region boundary 
+  -- selected polygons were exported to .csv as 'Y' (latitude) and 'X' (longitude) coordinates in epsg 4326 
+
+  
+The command used to generate output was  
+ 
+odm_args="--departure_time 2018-09-27-08:00:00                                               \
+          --duration_reps 2 2                                                                \
+          --max_time 7200                                                                    \
+          --max_walking_distance 500                                                         \
+          --matching one-to-many                                                             \
+          --originsfile graphs/sa1_dzn_modes_melb_2016/SA1_2016_melb_gccsa_10km_epsg4326.csv \
+          --destsfile graphs/sa1_dzn_modes_melb_2016/DZN_2016_melb_gccsa_10km_epsg4326.csv   \
+          --outdb graphs/sa1_dzn_modes_melb_2016/SA1_DZN_2016_melb_gccsa_10km.db             \
+          --outtable od_6modes_8am_10am                                                         \
+          --mode_list WALK BICYCLE CAR 'WALK,BUS' 'WALK,TRAM' 'WALK,RAIL' 'WALK,TRANSIT'     \
+          --run_once WALK BICYCLE CAR                                                        \
+          --id_names SA1_MAINCODE_2016 DZN_CODE_2016                                         \
+          --latlon_names Y X                                                                 \
+          --wideform                                                                         \
+          --proj_dir ./graphs/sa1_dzn_modes_melb_2016"
+
+./run-otp.sh  -d sa1_dzn_modes_melb_2016                \
+              -p melb_gccsa_2016_10000m_20180208.pbf  \
+              -t gtfs_aus_vic_melb_20180911.zip -w    \
+              "$odm_args"
+
+              
+When building the graph, the following were listed as defaults:
+DEFAULT_SUBWAY_ACCESS_TIME = 2.0
+htmlAnnotations = false
+maxHtmlAnnotationsPerFile = 1000
+transit = true
+useTransfersTxt = false
+parentStopLinking = false
+stationTransfers = false
+subwayAccessTime = 2.0
+streets = true
+embedRouterConfig = true
+areaVisibility = false
+matchBusRoutesToStreets = false
+fetchElevationUS = false
+elevationBucket = null
+fareServiceFactory = DefaultFareServiceFactory
+customNamer = null
+staticBikeRental = false
+staticParkAndRide = true
+staticBikeParkAndRide = false
+
+
+Perhaps we should look into whether we should make stationTransfers = true?  By the sounds of it, with it false as default you can't catch a train from Brunswick to North Melbourne to transfer to Footscray.  Am I interpreting that right?      
