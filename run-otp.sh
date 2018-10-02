@@ -151,7 +151,7 @@ calculateODM() {
     if [ $VERBOSE -eq 1 ] ; then echo $CMD; fi; eval $CMD
   fi
 
-  CMD="java -cp $OTPJAR:$JYTHONJAR org.python.util.jython $ODM_SCRIPT $ODM_ARGS --proj_dir $PROJ_DIR"
+  CMD="java -cp $OTPJAR:$JYTHONJAR:$SQLITEJAR org.python.util.jython $ODM_SCRIPT $ODM_ARGS --proj_dir $PROJ_DIR"
   echo $CMD
   if [ $VERBOSE -eq 1 ] ; then echo $CMD; fi; eval $CMD
 }
@@ -162,6 +162,7 @@ calculateODM() {
 
 OTPJAR=${DIR}/otp-0.19.0-shaded.jar
 JYTHONJAR=${DIR}/jython-standalone-2.7.0.jar
+SQLITEJAR=${DIR}/sqlite-jdbc-3.23.1.jar
 ODM_SCRIPT=${DIR}/odm.py
 getOptions "$@"
 

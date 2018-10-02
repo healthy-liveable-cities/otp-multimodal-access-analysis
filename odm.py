@@ -15,6 +15,10 @@
 import argparse, time, os.path, sys, itertools
 from org.opentripplanner.scripting.api import OtpsEntryPoint
 from datetime import datetime,timedelta
+import sys
+
+from java.lang import Class
+from java.sql  import DriverManager, SQLException
 
 def valid_date(s):
     try:
@@ -43,7 +47,7 @@ def valid_duration_reps(arg):
         raise argparse.ArgumentTypeError(msg)
     else:
         return arg
-  
+        
 # Parse input arguments
 parser = argparse.ArgumentParser(description='Generate origin destination matrix')
 parser.add_argument('--departure_time',
@@ -51,7 +55,7 @@ parser.add_argument('--departure_time',
                     required=True,
                     type=valid_date)
 parser.add_argument('--duration_reps',
-                    help='Two optional parameters defining a time duration and a repeat interval in hours',
+                    help='Two optional parameters defining a time duration and a repeat interval in hours.',
                     nargs=2,
                     default=[0,0],
                     type=float)                    
@@ -67,9 +71,12 @@ parser.add_argument('--destsfile',
                     help='path to the input csv file, which contains coordinates of destinations',
                     required=True,
                     type=valid_path)
-parser.add_argument('--outfile',
-                    help='path to the output csv file (default: traveltime_matrix)',
-                    default='traveltime_matrix.csv')
+parser.add_argument('--outdb',
+                    help='path to the output sqlite database (default: traveltime_matrix)',
+                    default='traveltime_matrix.db')
+parser.add_argument('--outtable',
+                    help='path to the output sqlite database (default: traveltime_matrix)',
+                    default='traveltime_matrix')
 parser.add_argument('--max_time',
                     help='maximum travel time in seconds (default: 7200)',
                     default=7200,
@@ -115,6 +122,62 @@ args = parser.parse_args()
 # Get the project name from the supplied project directory
 proj_name = os.path.basename(os.path.normpath(args.proj_dir))
 
+# db settings
+DATABASE    = "{}".format(args.outdb)
+JDBC_URL    = "jdbc:sqlite:%s"  % DATABASE
+JDBC_DRIVER = "org.sqlite.JDBC"
+
+TABLE_NAME      = "{}".format(args.outtable)
+TABLE_DROPPER   = "drop table if exists %s;" % TABLE_NAME
+TABLE_CREATOR   = "create table %s ( 'origin', 'destination', 'dep_time','mode','dist_m', 'time_mins' );" % TABLE_NAME
+RECORD_INSERTER = "insert into %s values (?, ?, ?, ?, ?, ?);" % TABLE_NAME
+
+def getConnection(jdbc_url, driverName):
+    """
+        Given the name of a JDBC driver class and the url to be used 
+        to connect to a database, attempt to obtain a connection to 
+        the database.
+    """
+    try:
+        Class.forName(driverName).newInstance()
+    except Exception, msg:
+        print msg
+        sys.exit(-1)
+    
+    try:
+        dbConn = DriverManager.getConnection(jdbc_url)
+    except SQLException, msg:
+        print msg
+        sys.exit(-1)
+    
+    return dbConn
+
+def populateTable(dbConn, feedstock):
+    """
+        Given an open connection to a SQLite database and a list of tuples
+        with the data to be inserted, insert the data into the target table.
+    """
+    try:
+        preppedStmt = dbConn.prepareStatement(RECORD_INSERTER)
+        for origin, destination, dep_time, mode, dist_m, time_mins in feedstock:
+            preppedStmt.setString(1, origin)
+            preppedStmt.setString(2, destination)
+            preppedStmt.setInt   (3, dep_time)
+            preppedStmt.setString(4, mode)
+            preppedStmt.setString(5, dist_m)
+            preppedStmt.setInt   (6, time_mins)
+            preppedStmt.addBatch()
+        dbConn.setAutoCommit(False)
+        preppedStmt.executeBatch()
+        dbConn.setAutoCommit(True)
+    except SQLException, msg:
+        print msg
+        return False
+    
+    return True
+
+#################################################################################    
+
 # Instantiate an OtpsEntryPoint
 otp = OtpsEntryPoint.fromArgs(['--graphs', 'graphs', '--router', proj_name])
 
@@ -142,6 +205,16 @@ lon = args.latlon_names[1]
 origins = otp.loadCSVPopulation(args.originsfile, lat, lon)
 dests   = otp.loadCSVPopulation(args.destsfile, lat, lon)
 
+# Instantiate SQL connection
+dbConn = getConnection(JDBC_URL, JDBC_DRIVER)
+stmt = dbConn.createStatement()
+try:
+    stmt.executeUpdate(TABLE_DROPPER)
+    stmt.executeUpdate(TABLE_CREATOR)
+except SQLException, msg:
+    print msg
+    sys.exit(1)
+
 # Process modes for OTP
 if args.combinations is False:
   #  modes can be specified at command line --- or not
@@ -159,18 +232,24 @@ else:
   modes = [','.join(x) for x in reduce(lambda acc, x: acc + list(itertools.combinations(args.mode_list, x)), range(1, len(args.mode_list) + 1), [])]
 
 run_once = args.run_once  
-  
-# Create a CSV output
-matrixCsv = otp.createCSVOutput()
-matrixCsv.setHeader([ 'Origin', 'Destination', 'Departure_time','Transport_mode(s)','Walk_distance (meters)', 'Travel_time (minutes)' ])
 
+
+# Save the parameters used to generate the result, along with date and time of analysis
+commencement = datetime.now().strftime("%Y%m%d_%H%M")
+parameter_file = open(os.path.join(args.proj_dir,
+                                   '{analysis}_parameters_{time}.txt'.format(analysis = os.path.basename(args.outfile),
+                                                                             time = commencement)), 
+                      "w")
+parameter_file.write('{}\nCommenced at {}'.format('\n'.join(sys.argv[1:]),commencement))
+parameter_file.close() 
+  
 # start_date = datetime.now()
 start_datetime = args.departure_time
 date_list = [start_datetime]
 if args.duration_reps[0] > 0:
     end_datetime = start_datetime + timedelta(hours=args.duration_reps[0])
     new_datetime = start_datetime
-    while new_datetime <= end_datetime:
+    while new_datetime < end_datetime:
         new_datetime += timedelta(hours=args.duration_reps[1])
         date_list.append(new_datetime)
 
@@ -183,16 +262,19 @@ for dep in date_list:
                     args.departure_time.hour,
                     args.departure_time.minute,
                     args.departure_time.second)
-    
+    r_dep_time    = dep.isoformat()
     # One-to-one matching
     if args.matching == 'one-to-one':
         index = 0;
         for origin, dest in itertools.izip(origins, dests):
+            set_time = time.time()
             index += 1
             req.setOrigin(origin)
+            r_origin = origin.getStringData(orig_id)
+            print("Processing dep {}: origin {}...".format(r_dep_time,r_origin)),
+            set = []
             for transport_mode in modes:
                 if (transport_mode not in run_once) or (transport_mode in run_once and i == 0):
-                    print("Processing {mode}: {index} {origin} to {dest}".format(index=index,origin=origin,dest=dest,mode=transport_mode))
                     # define transport mode
                     req.setModes(transport_mode)
                     
@@ -205,11 +287,15 @@ for dep in date_list:
                     # Evaluate the SPT for all points
                     result = spt.eval(dest)
                     # Add a new row of result in the CSV output
-                    if result is None:
-                        matrixCsv.addRow([ origin.getStringData(orig_id), dest.getStringData(dest_id),dep.isoformat(),'"{}"'.format(transport_mode), 0 , 'OUT_OF_BOUNDS'])
-                    else:
-                        matrixCsv.addRow([ origin.getStringData(orig_id), dest.getStringData(dest_id),dep.isoformat(), '"{}"'.format(transport_mode),result.getWalkDistance() , result.getTime()/60.0])
-    
+                    if result is not None:
+                        r_destination = dest.getStringData(dest_id)
+                        r_mode        = '"{}"'.format(transport_mode)
+                        r_dist_m      = result.getWalkDistance() 
+                        r_time_mins   = result.getTime()/60.0   
+                        set.append((r_origin, r_destination, r_dep_time, r_mode, r_dist_m, r_time_mins))
+            populateTable(dbConn, set)
+            print("Completed in %g seconds" % (time.time() - set_time))
+  
     # One-to-many matching
     if args.matching == 'one-to-many':
         all_dests = []
@@ -217,11 +303,13 @@ for dep in date_list:
             all_dests.append(dest.getStringData(dest_id))
         
         for index, origin in enumerate(origins):
-            found_dests = []
+            set_time = time.time()
             req.setOrigin(origin)
+            r_origin      = origin.getStringData(orig_id)
+            print("Processing dep {}: origin {}...".format(r_dep_time,r_origin)),
+            set = []
             for transport_mode in modes:
                 if (transport_mode not in run_once) or (transport_mode in run_once and i == 0):
-                    print("Processing {mode}: {index} {origin}".format(index=index,origin=origin,mode=transport_mode))
                     # define transport mode
                     req.setModes(transport_mode)
                     
@@ -235,30 +323,27 @@ for dep in date_list:
                     result = spt.eval(dests)
                     # Add a new row of result in the CSV output
                     for r in result:
-                        found_dests.append(r.getIndividual().getStringData(dest_id))
-                        matrixCsv.addRow([ origin.getStringData(orig_id),r.getIndividual().getStringData(dest_id),dep.isoformat(),  '"{}"'.format(transport_mode), r.getWalkDistance() , r.getTime()/60.0])
-                    
-                    for dest in list(set(all_dests) - set(found_dests)):                                          
-                        matrixCsv.addRow([ origin.getStringData(orig_id),dest,dep.isoformat(),  '"{}"'.format(transport_mode), 0 , 'OUT_OF_BOUNDS'])
+                        r_destination = r.getIndividual().getStringData(dest_id)
+                        r_mode        = '"{}"'.format(transport_mode)
+                        r_dist_m      = r.getWalkDistance() 
+                        r_time_mins   = r.getTime()/60.0   
+                        set.append((r_origin, r_destination, r_dep_time, r_mode, r_dist_m, r_time_mins))
+            populateTable(dbConn, set)
+            print("Completed in %g seconds" % (time.time() - set_time))
     i+=1
 
-# Save the result
-matrixCsv.save(args.outfile)
-# Save the parameters used to generate the result, along with date and time of analysis
-parameter_file = open(os.path.join(args.proj_dir,
-                                   '{analysis}_parameters_{time}.txt'.format(analysis = os.path.basename(args.outfile),
-                                                                             time = datetime.now().strftime("%Y%m%d_%H%M"))), 
-                      "w")
-parameter_file.write('\n'.join(sys.argv[1:]))
-parameter_file.close() 
-
-## Make wide form versions of result by walk distance and travel time seperated by mode combinations
-## This assumes you have python with pandas installed!
-## Pandas doesn't work in Jython, but is an easy way of munging around with transposing data; so, we do this in Python
-if args.wideform is not False:
-  import subprocess as sp
-  sp.call('python odm_combo_wide_long.py {}'.format(args.outfile), shell=True)
+# Close the database connection
+stmt.close()
+dbConn.close()    
 
 # Stop timing the code
-print("Elapsed time was %g seconds" % (time.time() - start_time))
+completion_time = datetime.now().strftime("%Y%m%d_%H%M")
+duration = time.time() - start_time
+parameter_file = open(os.path.join(args.proj_dir,
+                                   '{analysis}_parameters_{time}.txt'.format(analysis = os.path.basename(args.outfile),
+                                                                             time = commencement)), 
+                      "a")
+parameter_file.write('\nCompleted at {}\nDuration (hours): {}'.format(completion,duration))
+parameter_file.close() 
+print("Elapsed time was {:.2} hours".format(completion/60/60))
 print("Processed OD travel estimates for modes: {}".format(modes))
