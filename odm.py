@@ -257,7 +257,7 @@ parameter_file = open(os.path.join(args.proj_dir,
                                    '{analysis}_parameters_{time}.txt'.format(analysis = os.path.basename(args.outdb),
                                                                              time = commencement)), 
                       "w")
-parameter_file.write('{}\nCommenced at {}'.format('\n'.join(sys.argv[1:]),commencement))
+parameter_file.write('{}\n\nCommenced at {}'.format('\n'.join(sys.argv[1:]),commencement))
 parameter_file.close() 
   
 # start_date = datetime.now()
@@ -307,7 +307,7 @@ for dep in date_list:
                     if result is not None:
                         r_destination = dest.getStringData(dest_id)
                         r_mode        = '"{}"'.format(transport_mode)
-                        r_dist_m      = result.getWalkDistance() 
+                        r_dist_m      = int(result.getWalkDistance())
                         r_time_mins   = result.getTime()/60.0   
                         set.append((r_origin, r_destination, r_dep_time, r_mode, r_dist_m, r_time_mins))
             populateTable(dbConn, set)
@@ -342,7 +342,7 @@ for dep in date_list:
                     for r in result:
                         r_destination = r.getIndividual().getStringData(dest_id)
                         r_mode        = '"{}"'.format(transport_mode)
-                        r_dist_m      = r.getWalkDistance() 
+                        r_dist_m      = int(result.getWalkDistance())
                         r_time_mins   = r.getTime()/60.0   
                         set.append((r_origin, r_destination, r_dep_time, r_mode, r_dist_m, r_time_mins))
             populateTable(dbConn, set)
