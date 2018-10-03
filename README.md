@@ -1,5 +1,9 @@
-# Generalisation of LATCH ABM Project (Open Trip Planner)
-Original implementation at https://bitbucket.org/dhixsingh/latch-abm/src/master/otp/
+# Multi-modal Origin-Destination analysis for 30 minute cities using OpenTripPlanner
+This repository stores wrapper function scripts for running OpenTripPlanner; in particular, it is geared to facilitate analysis from origins to destinations using multiple modes and timepoints, with results output in long form to an SQLite database.  
+
+The intent is to use these scripts to estimate the spatiotemporal distribution of time from communities (e.g. SA1 centroids) to employment hubs (DZN centroids), considering variation across mode choice/mix and departure time.
+
+It is a generalisation and reapplication of the LATCH ABM Project, found at https://bitbucket.org/dhixsingh/latch-abm/src/master/otp/
 
 The ./run-otp.sh script is a wrapper function for running OpenTripPlanner <http://www.opentripplanner.org/>, as configured using odm.py.  It is used to calculate OD matrices for a given set of data, according to a range of optional parameters dictating  sequence of times of day and multimodal trip combinations.
 
