@@ -16,7 +16,7 @@ usage: run-otp.sh [options]
   options:
     -h       Print this help.
     -v       Show commands being executed
-    -d       Specify project directory (req'd); files are assumed to be located here.
+    -d       Specify project directory (reqd); files are assumed to be located here.
              This is a subfolder of ./graphs/
     -p       Specify pbf file for osm data; assumed within project dir.
     -t       Specify GTFS zip file name; assumed within project dir
@@ -71,6 +71,7 @@ usage: run-otp.sh [options]
                   --cmd CMD             The command used to call the python script may be
                                         specified; if so it is recorded to the log txt file.
     -r       run Open Trip Planner (use -x too if needed)
+```
 
 There is an assumption that GTFS.zip, osm.pbf and (optionally) .tif data are stored
 in the./graphs/project_folder directory.
@@ -78,6 +79,7 @@ in the./graphs/project_folder directory.
 Here is an example of usage at the Bash shell prompt, first storing odm.py args in a variable
 odm_args, and then executing:
 
+```
 odm_args="--departure_time 2018-09-27-08:00:00                                               \
           --duration_reps 2 2                                                                \
           --max_time 7200                                                                    \
@@ -107,14 +109,15 @@ odm_args="--departure_time 2018-09-27-08:00:00                                  
 * OTP 0.9.0 jar file ( download from http://docs.opentripplanner.org/en/latest/Getting-OTP/#pre-built-jars)
 * Xerial sqlite jar from https://bitbucket.org/xerial/sqlite-jdbc/downloads/sqlite-jdbc-3.23.1.jar to be located along with the otp and jython jars
 * OpenStreetMap portion for your study region 
-** .pbf format recommended
-** you can use Osmosis to extract a subset using a .poly boundary file
-** you can create a .poly boundary file from a spatial feature in EPSG 4326 CRS using QGIS with the osmpoly_export plugin
-** make sure to buffer any study region boundary by an appropriate amount (say, 10km) to account for edge effects (e.g. truncated road network connectivity) before making the .poly file
+    * .pbf format recommended
+    * you can use Osmosis to extract a subset using a .poly boundary file
+    * you can create a .poly boundary file from a spatial feature in EPSG 4326 CRS using QGIS with the osmpoly_export plugin
+    * make sure to buffer any study region boundary by an appropriate amount (say, 10km) to account for edge effects (e.g. truncated road network connectivity) before making the .poly file
 * GTFS transport data (e.g. see http://transitfeeds.com/) with appropriate spatial coverage of your study region
 * optional elevation data (e.g. from https://www.eorc.jaxa.jp/ALOS/en/aw3d30/)
-** I believe you should merge your .tif tiles into one .tif; you can do this using GDAL merge, but it may be easier to use the wrapper python script i wrote bulk_gdal_merge.py
+    * I believe you should merge your .tif tiles into one .tif; you can do this using GDAL merge, but it may be easier to use the wrapper python script i wrote bulk_gdal_merge.py
 
 Original authour (LATCH ABM): Dhirendra Singh, 2016-18
+
 Modified: Carl Higgs, 2018
 
