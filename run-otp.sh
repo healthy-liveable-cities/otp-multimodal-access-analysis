@@ -22,62 +22,89 @@ usage: $(basename $0) [options]
   options:
     -h       Print this help.
     -v       Show commands being executed
-    -d       Specify project directory (req'd); files are assumed to be located here.  This is a subfolder of /graphs/ 
+    -d       Specify project directory (req'd); files are assumed to be located here.  
+             This is a subfolder of ./graphs/ 
     -p       Specify pbf file for osm data; assumed within project dir.  
     -t       Specify GTFS zip file name; assumed within project dir
     -x       Build the graph
-    -w ARGS  Build a origin-destination matrix (CSV), passing ARGS to the underlying script, e.g.:
-             usage: odm.py [-h] --departure_time DEPARTURE_TIME
-              [--duration_reps DURATION_REPS DURATION_REPS] --proj_dir
-              PROJ_DIR --originsfile ORIGINSFILE --destsfile DESTSFILE
-              [--outfile OUTFILE] [--max_time MAX_TIME]
-              [--max_walking_distance MAX_WALKING_DISTANCE]
-              [--mode_list [MODE_LIST [MODE_LIST ...]]] [--matching MATCHING]
-              [--combinations] [--wideform] [--init]
-              
-              Generate origin destination matrix
-              
-              optional arguments:
-                -h, --help            show this help message and exit
-                --departure_time DEPARTURE_TIME
-                                      departure time - format YYYY-MM-DD-HH:MM:SS
-                --duration_reps DURATION_REPS DURATION_REPS
-                                      Two optional parameters defining a time duration and a
-                                      repeat interval in hours
-                --proj_dir PROJ_DIR   project directory
-                --originsfile ORIGINSFILE
-                                      path to the input csv file, which contains coordinates
-                                      of origins
-                --destsfile DESTSFILE
-                                      path to the input csv file, which contains coordinates
-                                      of destinations
-                --outfile OUTFILE     path to the output csv file (default:
-                                      traveltime_matrix)
-                --max_time MAX_TIME   maximum travel time in seconds (default: 7200)
-                --max_walking_distance MAX_WALKING_DISTANCE
-                                      maximum walking distance in meters (default: 500)
-                --mode_list [MODE_LIST [MODE_LIST ...]]
-                                      Modes to travel by. Options --pending appropriate
-                                      data-- are: WALK, BICYCLE, CAR, TRAM, SUBWAY, RAIL,
-                                      BUS, FERRY, CABLE_CAR, GONDOLA, FUNICULAR, TRANSIT,
-                                      LEG_SWITCH, AIRPLANE (default: WALK,BUS,RAIL)
-                --matching MATCHING   How origins and destinations should be matched. Can be
-                                      either one-to-one or one-to-many (default: one-to-
-                                      many)
-                --combinations        Create all combinations of supplied destination list
-                --wideform            Transpose data to wideform from longform main output
-                
-                Here is an example of what a call to it without using the run-otp.sh wrapper looks like:
-                java -cp otp-0.19.0-shaded.jar:jython-standalone-2.7.0.jar org.python.util.jython odm.py --departure_time 2018-09-12-07:30:00 --duration_reps 2 .5 --originsfile graphs/aus_vic_melb_20180911/SA2_origins_manual.csv --destsfile graphs/aus_vic_melb_20180911/SA2_destinations_manual.csv --outfile graphs/aus_vic_melb_20180911/SA2_SA2_ODM_repetition_test2.csv --mode_list 'WALK,TRANSIT' --proj_dir ./graphs/aus_vic_melb_20180911
-                
-                Or, using the run-otp.sh wrapper function:
-
-                ./run-otp.sh  -d aus_vic_melb_20180911 -p melb_gccsa_2016_10000m_20180208.pbf -t gtfs_aus_vic_melb_20180911.zip -w "--departure_time 2018-09-12-07:30:00 --originsfile graphs/aus_vic_melb_20180911/SA2_origins_manual.csv --destsfile graphs/aus_vic_melb_20180911/SA2_destinations_manual.csv --outfile graphs/aus_vic_melb_20180911/SA2_SA2_ODM_repetition_test2.csv --mode_list 'WALK,TRANSIT'"
-                
-                There is an assumption that GTFS.zip, osm.pbf and (optionally) .tif data are stored 
-                in the./graphs/project_folder directory.  
-                
+    -w ARGS  Build a origin-destination matrix (CSV) using odm.py to drive OTP.
+             The following arguments used to drive the analysis are passed to odm.py in quotes:
+                optional arguments:
+                  -h, --help            show this help message and exit
+                  --departure_time DEPARTURE_TIME
+                                        departure time - format YYYY-MM-DD-HH:MM:SS
+                  --duration_reps DURATION_REPS DURATION_REPS
+                                        Two optional parameters defining a time duration and a
+                                        repeat interval in hours.
+                  --proj_dir PROJ_DIR   project directory
+                  --originsfile ORIGINSFILE
+                                        path to the input csv file, which contains coordinates
+                                        of origins
+                  --destsfile DESTSFILE
+                                        path to the input csv file, which contains coordinates
+                                        of destinations
+                  --outdb OUTDB         path to the output sqlite database (default:
+                                        traveltime_matrix)
+                  --outtable OUTTABLE   path to the output sqlite database (default:
+                                        traveltime_matrix)
+                  --max_time MAX_TIME   maximum travel time in seconds (default: 7200)
+                  --max_walking_distance MAX_WALKING_DISTANCE
+                                        maximum walking distance in meters (default: 500)
+                  --mode_list [MODE_LIST [MODE_LIST ...]]
+                                        Modes to travel by. Options --pending appropriate
+                                        data-- are: WALK, BICYCLE, CAR, TRAM, SUBWAY, RAIL,
+                                        BUS, FERRY, CABLE_CAR, GONDOLA, FUNICULAR, TRANSIT,
+                                        LEG_SWITCH, AIRPLANE (default: WALK,BUS,RAIL)
+                  --run_once [RUN_ONCE [RUN_ONCE ...]]
+                                        Modes for which transport is only evaluated at one
+                                        time point. For example, you may be evaluating
+                                        difference between on-peak and off-peak travel times,
+                                        however no difference would be expected for walking or
+                                        cycling, so these may be excluded (e.g. WALK BICYCLE).
+                                        Valid options are as per mod_list; the default is an
+                                        empty list.
+                  --matching MATCHING   How origins and destinations should be matched. Can be
+                                        either one-to-one or one-to-many (default: one-to-
+                                        many)
+                  --combinations        Create all combinations of supplied destination list
+                  --id_names [ID_NAMES [ID_NAMES ...]]
+                                        Names of respective ID fields for source Origin and
+                                        Destination csv files (default: GEOID GEOID)
+                  --latlon_names [LATLON_NAMES [LATLON_NAMES ...]]
+                                        Names of latitude and longitude fields in source
+                                        Origin and Destination csv fields (default: lat lon)
+                  --wideform            Transpose data to wideform from longform main output
+                  --cmd CMD             The command used to call the python script may be
+                                        specified; if so it is recorded to the log txt file.
     -r       run Open Trip Planner (use -x too if needed)
+    
+There is an assumption that GTFS.zip, osm.pbf and (optionally) .tif data are stored 
+in the./graphs/project_folder directory.  
+                
+Here is an example of usage at the Bash shell prompt, first storing odm.py args in a variable 
+odm_args, and then executing:
+
+odm_args="--departure_time 2018-09-27-08:00:00                                               \\
+          --duration_reps 2 2                                                                \\
+          --max_time 7200                                                                    \\
+          --max_walking_distance 500                                                         \\
+          --matching one-to-many                                                             \\
+          --originsfile graphs/sa1_dzn_modes_melb_2016/SA1_2016_melb_gccsa_10km_epsg4326.csv \\
+          --destsfile graphs/sa1_dzn_modes_melb_2016/DZN_2016_melb_gccsa_10km_epsg4326.csv   \\
+          --outdb graphs/sa1_dzn_modes_melb_2016/SA1_DZN_2016_melb_gccsa_10km.db             \\
+          --outtable od_6modes_8am_10am                                                      \\
+          --mode_list WALK BICYCLE CAR 'WALK,BUS' 'WALK,TRAM' 'WALK,RAIL' 'WALK,TRANSIT'     \\
+          --run_once WALK BICYCLE CAR                                                        \\
+          --id_names SA1_MAINCODE_2016 DZN_CODE_2016                                         \\
+          --latlon_names Y X                                                                 \\
+          --wideform                                                                         \\
+          --proj_dir ./graphs/sa1_dzn_modes_melb_2016"
+
+./run-otp.sh  -d sa1_dzn_modes_melb_2016              \\
+              -p melb_gccsa_2016_10000m_20180208.pbf  \\
+              -t gtfs_aus_vic_melb_20180911.zip -w    \\
+              "\$odm_args"          
+
 END_HELP
 }
 
