@@ -95,12 +95,12 @@ parser.add_argument('--outtable',
                     help='path to the output sqlite database (default: traveltime_matrix)',
                     default='traveltime_matrix')
 parser.add_argument('--max_time',
-                    help='maximum travel time in seconds (default: 7200)',
-                    default=7200,
+                    help='maximum travel time in seconds (default: 1800)',
+                    default=1800,
                     type=int)
 parser.add_argument('--max_walking_distance',
                     help='maximum walking distance in meters (default: 500)',
-                    default=500,
+                    default=30000,
                     type=int)
 parser.add_argument('--mode_list',
                     help='Modes to travel by.  Options --pending appropriate data-- are: WALK, BICYCLE, CAR, TRAM, SUBWAY, RAIL, BUS, FERRY, CABLE_CAR, GONDOLA, FUNICULAR, TRANSIT, LEG_SWITCH, AIRPLANE (default: WALK,BUS,RAIL)',
@@ -312,7 +312,7 @@ for dep in date_list:
                     result = spt.eval(dest)
                     # Add a new row of result in the CSV output
                     if result is not None:
-                        if result.getWalkDistance() is not None:
+                        if (result.getTime() is not None) and (0 <= result.getTime() <=1800) :
                             r_destination = dest.getStringData(dest_id)
                             r_mode        = '"{}"'.format(transport_mode)
                             r_dist_m      = int(result.getWalkDistance())
@@ -348,7 +348,7 @@ for dep in date_list:
                     result = spt.eval(dests)
                     # Add a new row of result in the CSV output
                     for r in result:
-                        if r.getWalkDistance() is not None:
+                        if (result.getTime() is not None) and (0 <= result.getTime() <=1800) :
                             r_destination = r.getIndividual().getStringData(dest_id)
                             r_mode        = '"{}"'.format(transport_mode)
                             r_dist_m      = int(r.getWalkDistance())
@@ -369,7 +369,7 @@ parameter_file = open(os.path.join(args.proj_dir,
                                    '{analysis}_parameters_{time}.txt'.format(analysis = os.path.basename(args.outdb),
                                                                              time = commencement)), 
                       "a")
-parameter_file.write('\nCompleted at {}\nDuration (hours): {}'.format(completion,duration))
+parameter_file.write('\nCompleted at {}\nDuration (hours): {}'.format(completion_time,duration))
 parameter_file.close() 
-print("Elapsed time was {:.2} hours".format(completion/60/60))
+print("Elapsed time was {:.2} hours".format(duration/60/60))
 print("Processed OD travel estimates for modes: {}".format(modes))
