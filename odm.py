@@ -348,7 +348,7 @@ for dep in date_list:
                     result = spt.eval(dests)
                     # Add a new row of result in the CSV output
                     for r in result:
-                        if (result.getTime() is not None) and (0 <= result.getTime() <=1800) :
+                        if (r.getTime() is not None) and (0 <= r.getTime() <=1800) :
                             r_destination = r.getIndividual().getStringData(dest_id)
                             r_mode        = '"{}"'.format(transport_mode)
                             r_dist_m      = int(r.getWalkDistance())
