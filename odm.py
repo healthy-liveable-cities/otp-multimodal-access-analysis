@@ -312,10 +312,10 @@ for dep in date_list:
                     result = spt.eval(dest)
                     # Add a new row of result in the CSV output
                     if result is not None:
-                        if (result.getTime() is not None) and (0 <= result.getTime() <=1800) :
+                        if (result.getTime() is not None) and (0 <= result.getTime() <=args.max_time) :
                             r_destination = dest.getStringData(dest_id)
                             r_mode        = '"{}"'.format(transport_mode)
-                            r_dist_m      = int(result.getWalkDistance())
+                            r_dist_m      = int(0 if value is None else result.getWalkDistance())
                             r_time_mins   = result.getTime()/60.0   
                             set.append((r_origin, r_destination, r_dep_time, r_mode, r_dist_m, r_time_mins))
             populateTable(dbConn, set)
@@ -348,10 +348,10 @@ for dep in date_list:
                     result = spt.eval(dests)
                     # Add a new row of result in the CSV output
                     for r in result:
-                        if (r.getTime() is not None) and (0 <= r.getTime() <=1800) :
+                        if (r.getTime() is not None) and (0 <= r.getTime() <=args.max_time) :
                             r_destination = r.getIndividual().getStringData(dest_id)
                             r_mode        = '"{}"'.format(transport_mode)
-                            r_dist_m      = int(r.getWalkDistance())
+                            r_dist_m      = int(0 if value is None else result.getWalkDistance())
                             r_time_mins   = r.getTime()/60.0   
                             set.append((r_origin, r_destination, r_dep_time, r_mode, r_dist_m, r_time_mins))
             populateTable(dbConn, set)
