@@ -107,9 +107,9 @@ odm_args="--departure_time 2018-09-27-08:00:00                                  
 ```
 
 ## Prerequisites
+This has been successfully run on Ubuntu with openjdk version "1.8.0_181" of java installed.  These are the main installation pre-requisites, otherwise, you need to make sure the following jar files are located in the project directory, and other data is present and specified as required:
 
-* Jython 2.7 (Download jython-installer-2.7.0.jar from http://www.jython.org/downloads.html)
-        > java -jar jython-installer-2.7.0.jar
+* Jython 2.7 (Download ython-standalone-2.7.0.jar from https://www.jython.org/downloads.html and co-locate other jars in project directory)
 * OTP 0.9.0 jar file ( download from http://docs.opentripplanner.org/en/latest/Getting-OTP/#pre-built-jars)
 * Xerial sqlite jar from https://bitbucket.org/xerial/sqlite-jdbc/downloads/sqlite-jdbc-3.23.1.jar to be located along with the otp and jython jars
 * OpenStreetMap portion for your study region 
