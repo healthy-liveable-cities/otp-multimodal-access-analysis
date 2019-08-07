@@ -315,7 +315,7 @@ for dep in date_list:
                         if (result.getTime() is not None) and (0 <= result.getTime() <=args.max_time) :
                             r_destination = dest.getStringData(dest_id)
                             r_mode        = '"{}"'.format(transport_mode)
-                            r_dist_m      = int(0 if value is None else result.getWalkDistance())
+                            r_dist_m      = int(0 if result.getWalkDistance() is None else result.getWalkDistance())
                             r_time_mins   = result.getTime()/60.0   
                             set.append((r_origin, r_destination, r_dep_time, r_mode, r_dist_m, r_time_mins))
             populateTable(dbConn, set)
@@ -345,14 +345,14 @@ for dep in date_list:
                         continue
                     
                     # Evaluate the SPT for all points
-                    result = spt.eval(dests)
+                    results = spt.eval(dests)
                     # Add a new row of result in the CSV output
-                    for r in result:
+                    for result in results:
                         if (r.getTime() is not None) and (0 <= r.getTime() <=args.max_time) :
-                            r_destination = r.getIndividual().getStringData(dest_id)
+                            r_destination = result.getIndividual().getStringData(dest_id)
                             r_mode        = '"{}"'.format(transport_mode)
-                            r_dist_m      = int(0 if value is None else result.getWalkDistance())
-                            r_time_mins   = r.getTime()/60.0   
+                            r_dist_m      = int(0 if result.getWalkDistance() is None else result.getWalkDistance())
+                            r_time_mins   = result.getTime()/60.0   
                             set.append((r_origin, r_destination, r_dep_time, r_mode, r_dist_m, r_time_mins))
             populateTable(dbConn, set)
             print("Completed in %g seconds" % (time.time() - set_time))
