@@ -28,14 +28,33 @@
 #               -t gtfs_aus_vic_melb_20180911.zip -w    \
 #               "$odm_args"
 ###################################################################################################
+# Do debug you can run from bash interactively in the otp directory the following:
+# DIR="."
+# OTPJAR=${DIR}/otp-0.19.0-shaded.jar
+# JYTHONJAR=${DIR}/jython-standalone-2.7.0.jar
+# SQLITEJAR=${DIR}/sqlite-jdbc-3.23.1.jar
+#
+# java  -Duser.timezone=Australia/Melbourne -cp $OTPJAR:$JYTHONJAR:$SQLITEJAR org.python.util.jython
+#  
+# When running code interactively, don't enter the  parser.parse_args() function - it will crash the script
+# The following alternate variable definitions may be of use:
+# 
+# DATABASE = "graphs/sa1_dzn_region10_2019/region10_gccsa_SA1_DZN_2016_vic.db"
+# originsfile = "graphs/sa1_dzn_region10_2019/sa1_2016_network_snapped_pwc_region10.csv"
+# destsfile = "graphs/sa1_dzn_region10_2019/dzn_2016_network_snapped_centroids_region10.csv"
+# TABLE_NAME = "od_4modes_7_45am"
+# id_names = ['SA1_MAINCO','DZN_CODE_2016']
+# latlon_names =['Y','X']
 
 import argparse, time, os.path, sys, itertools
 from org.opentripplanner.scripting.api import OtpsEntryPoint
 from datetime import datetime,timedelta
 import sys
+import csv
 
 from java.lang import Class
 from java.sql  import DriverManager, SQLException
+from com.ziclix.python.sql import zxJDBC
 
 def valid_date(s):
     try:
@@ -148,37 +167,65 @@ JDBC_URL    = "jdbc:sqlite:%s"  % DATABASE
 JDBC_DRIVER = "org.sqlite.JDBC"
 
 TABLE_NAME      = "{}".format(args.outtable)
-TABLE_DROPPER   = "drop table if exists %s;" % TABLE_NAME
-TABLE_CREATOR   = "create table %s ( 'origin', 'destination', 'dep_time','mode','dist_m', 'time_mins' );" % TABLE_NAME
-RECORD_INSERTER = "insert into %s values (?, ?, ?, ?, ?, ?);" % TABLE_NAME
 
-def getConnection(jdbc_url, driverName):
+def createTable(table,values = " 'origin', 'destination', 'dep_time','mode','dist_m', 'time_mins' "):
+    """
+        Return string to create a database table pending given context (results, origins or destinations)
+    """
+    if table == "origins":
+        TABLE_CREATOR   = "create table if not exists origins_{} ({});".format(TABLE_NAME,values)
+    if table == "destinations":
+        TABLE_CREATOR   = "create table if not exists destinations_{} ({});".format(TABLE_NAME,values)
+    if table == "results":
+        TABLE_CREATOR   = "create table if not exists {} ({});".format(TABLE_NAME,values)
+    return(TABLE_CREATOR)
+
+def insertRows(table,values="?,?,?,?,?,?"):
+    """
+        Return string to insert rows to a database table pending given context (results, origins or destinations)
+    """
+    if table == "origins":
+        RECORD_INSERTER   = "insert into origins_{} values ({});".format(TABLE_NAME,values)
+    if table == "destinations":
+        RECORD_INSERTER   = "insert into destinations_{} values ({});".format(TABLE_NAME,values)
+    if table == "results":
+        RECORD_INSERTER   = "insert into {} values ({});".format(TABLE_NAME,values)
+    return(RECORD_INSERTER)    
+
+def getConnection(JDBC_URL, JDBC_DRIVER, sql_zxJDBC=True):
     """
         Given the name of a JDBC driver class and the url to be used 
         to connect to a database, attempt to obtain a connection to 
         the database.
     """
     try:
-        Class.forName(driverName).newInstance()
+        Class.forName(JDBC_DRIVER).newInstance()
     except Exception, msg:
         print msg
         sys.exit(-1)
     
-    try:
-        dbConn = DriverManager.getConnection(jdbc_url)
-    except SQLException, msg:
-        print msg
-        sys.exit(-1)
-    
+    if sql_zxJDBC == True:
+        try:
+            # no user/password combo needed here, hence the None, None
+            dbConn = zxJDBC.connect(JDBC_URL, None, None, JDBC_DRIVER)
+        except zxJDBC.DatabaseError, msg:
+            print msg
+            sys.exit(-1)
+    else:
+        try:
+            dbConn = DriverManager.getConnection(JDBC_URL)
+        except SQLException, msg:
+            print msg
+            sys.exit(-1)
     return dbConn
 
-def populateTable(dbConn, feedstock):
+def populateTable(dbConn, feedstock, sql_zxJDBC = False):
     """
         Given an open connection to a SQLite database and a list of tuples
         with the data to be inserted, insert the data into the target table.
     """
     try:
-        preppedStmt = dbConn.prepareStatement(RECORD_INSERTER)
+        preppedStmt = dbConn.prepareStatement(insertRows('results'))
         for origin, destination, dep_time, mode, dist_m, time_mins in feedstock:
             preppedStmt.setString(1, origin)
             preppedStmt.setString(2, destination)
@@ -195,7 +242,7 @@ def populateTable(dbConn, feedstock):
         return False
     
     return True
-
+    
 #################################################################################    
 
 # Instantiate an OtpsEntryPoint
@@ -216,24 +263,104 @@ req.setMaxTimeSec(args.max_time)
 # set maximum walking distance
 req.setMaxWalkDistance(args.max_walking_distance)
 
+# Instantiate zxJDBC SQL connection
+dbConn = getConnection(JDBC_URL,JDBC_DRIVER, True)
+cursor = dbConn.cursor()
+
+try:
+    cursor.execute(createTable("results"))
+except SQLException, msg:
+    print msg
+    sys.exit(1)
+
+with open(os.path.abspath('./{}'.format(args.originsfile)), 'rb') as f:
+    reader = csv.reader(f)
+    origin_list = map(tuple, reader)
+
+with open(os.path.abspath('./{}'.format(args.destsfile)), 'rb') as f:
+    reader = csv.reader(f)
+    dests_list = map(tuple, reader)
+
+try:    
+    # copy origins to db
+    cursor.execute("drop table if exists origins_{};".format(TABLE_NAME))
+    cursor.execute(createTable(table = "origins",
+                               values = "'Y', 'X', 'fid', 'SA1_MAINCO', 'SA1_7DIGIT', 'COMPOUND_ID'"))    
+    cursor.executemany(insertRows("origins",','.join(['?' for x in range(0,len(origin_list[0]))])), 
+                       origin_list[1:])
+    dbConn.commit()
+    # copy dests to db
+    cursor.execute("drop table if exists destinations_{};".format(TABLE_NAME))
+    cursor.execute(createTable(table = "destinations",
+                               values = "'Y', 'X', 'fid', 'DZN_CODE_2016', 'COMPOUND_ID'")) 
+    cursor.executemany(insertRows("destinations",','.join(['?' for x in range(0,len(dests_list[0]))])), 
+                       dests_list[1:])
+    dbConn.commit()   
+except SQLException, msg:
+    print msg
+    sys.exit(1)
+
+# SNIPPETS FOR DEBUGGING
+# cursor.execute("SELECT * FROM {result};".format(result=TABLE_NAME))
+# for row in cursor.fetchall():
+    # print(row)
+    
+# Delete all records with largest ID
+# Assuming records are processed sequentially by id, if the process has crashed
+# the safest way to ensure all results are processed are to discard the potentially
+# incomplate previous transaction set (larget id) and recommence from there.
+cursor.execute('''
+    DELETE FROM {result} 
+    WHERE origin = (SELECT origin FROM {result} ORDER BY origin DESC LIMIT 1);
+    '''.format(result=TABLE_NAME))
+dbConn.commit()
+cursor.execute('''DROP TABLE IF EXISTS origins_updated''')
+dbConn.commit()
+cursor.execute('''CREATE TABLE origins_updated AS 
+                SELECT * FROM origins_{result} 
+                WHERE "{id}" > COALESCE((SELECT origin FROM {result} ORDER BY origin DESC LIMIT 1),'');
+                '''.format(result = TABLE_NAME,
+                           id = args.id_names[0]))
+dbConn.commit()
+    
+cursor.execute('''
+    SELECT "{id}",
+           "{lat}",
+           "{lon}"
+    FROM origins_updated
+    '''.format(id = args.id_names[0],
+               lat = args.latlon_names[0],
+               lon = args.latlon_names[1]))
+rows = cursor.fetchall()
+
+updated_csv = '{}_updated{}'.format(*os.path.splitext(args.originsfile))
+try:
+    os.remove(updated_csv)
+except OSError:
+    pass
+    
+with open(updated_csv, 'w') as f:
+    updated_origins = csv.writer(f)
+    updated_origins.writerow((args.id_names[0],args.latlon_names[0],args.latlon_names[1]))
+    updated_origins.writerows(rows)
+    
+# Close the zxJDBC connection
+cursor.close()
+dbConn.close()
+
+# open Xenial connection
+dbConn = getConnection(JDBC_URL, JDBC_DRIVER, sql_zxJDBC = False)
+stmt = dbConn.createStatement()
+
 # Read Points of Destination - The file points.csv, drawing on defaults or specified IDs, latitude and longitude
 orig_id = args.id_names[0]
 dest_id = args.id_names[1]
 lat = args.latlon_names[0]
 lon = args.latlon_names[1]
 
-origins = otp.loadCSVPopulation(args.originsfile, lat, lon)
+origins = otp.loadCSVPopulation(updated_csv, lat, lon)
 dests   = otp.loadCSVPopulation(args.destsfile, lat, lon)
 
-# Instantiate SQL connection
-dbConn = getConnection(JDBC_URL, JDBC_DRIVER)
-stmt = dbConn.createStatement()
-try:
-    stmt.executeUpdate(TABLE_DROPPER)
-    stmt.executeUpdate(TABLE_CREATOR)
-except SQLException, msg:
-    print msg
-    sys.exit(1)
 
 # Process modes for OTP
 if args.combinations is False:
@@ -348,7 +475,7 @@ for dep in date_list:
                     results = spt.eval(dests)
                     # Add a new row of result in the CSV output
                     for result in results:
-                        if (r.getTime() is not None) and (0 <= r.getTime() <=args.max_time) :
+                        if (result.getTime() is not None) and (0 <= result.getTime() <=args.max_time) :
                             r_destination = result.getIndividual().getStringData(dest_id)
                             r_mode        = '"{}"'.format(transport_mode)
                             r_dist_m      = int(0 if result.getWalkDistance() is None else result.getWalkDistance())
