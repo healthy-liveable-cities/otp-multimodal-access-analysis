@@ -491,12 +491,12 @@ dbConn.close()
 
 # Stop timing the code
 completion_time = datetime.now().strftime("%Y%m%d_%H%M")
-duration = time.time() - start_time
+duration = (time.time() - start_time)/60/60
 parameter_file = open(os.path.join(args.proj_dir,
                                    '{analysis}_parameters_{time}.txt'.format(analysis = os.path.basename(args.outdb),
                                                                              time = commencement)), 
                       "a")
-parameter_file.write('\nCompleted at {}\nDuration (hours): {}'.format(completion_time,duration))
+parameter_file.write('\nCompleted at {}\nDuration (hours): {:.2}'.format(completion_time,duration))
 parameter_file.close() 
-print("Elapsed time was {:.2} hours".format(duration/60/60))
+print("Elapsed time was {:.2} hours".format(duration))
 print("Processed OD travel estimates for modes: {}".format(modes))
