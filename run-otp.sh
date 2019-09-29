@@ -149,7 +149,7 @@ buildGraph() {
   # build graphs
   if [ ! -f "$PROJ_DIR/Graph.obj" ]; then
     printf "\nBuilding $PROJ_DIR/Graph.obj\n"
-    CMD="java -Xmx3G -jar $OTPJAR --build $PROJ_DIR"
+    CMD="java -Xmx4G -jar $OTPJAR --build $PROJ_DIR"
     if [ $VERBOSE -eq 1 ] ; then echo $CMD; fi; eval $CMD
   fi
 }
@@ -158,11 +158,11 @@ buildGraph() {
 # Run Open Trip Planner
 ############################################################################
 runOTP() {
-  CMD="java -Xmx3G -jar $OTPJAR --help"
+  CMD="java -Xmx4G -jar $OTPJAR --help"
   if [ $VERBOSE -eq 1 ] ; then echo $CMD; fi; eval $CMD
 
   # launch OTP
-  CMD="java -Xmx3G -jar $OTPJAR --graphs $PROJ_DIR/.. --analyst --server --router $PROJ_NAME"
+  CMD="java -Xmx4G -jar $OTPJAR --graphs $PROJ_DIR/.. --analyst --server --router $PROJ_NAME"
   if [ $VERBOSE -eq 1 ] ; then echo $CMD; fi; eval $CMD
 }
 

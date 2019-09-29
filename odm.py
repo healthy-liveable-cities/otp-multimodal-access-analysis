@@ -28,23 +28,7 @@
 #               -t gtfs_aus_vic_melb_20180911.zip -w    \
 #               "$odm_args"
 ###################################################################################################
-# Do debug you can run from bash interactively in the otp directory the following:
-# DIR="."
-# OTPJAR=${DIR}/otp-0.19.0-shaded.jar
-# JYTHONJAR=${DIR}/jython-standalone-2.7.0.jar
-# SQLITEJAR=${DIR}/sqlite-jdbc-3.23.1.jar
-#
-# java  -Duser.timezone=Australia/Melbourne -cp $OTPJAR:$JYTHONJAR:$SQLITEJAR org.python.util.jython
-#  
-# When running code interactively, don't enter the  parser.parse_args() function - it will crash the script
-# The following alternate variable definitions may be of use:
-# 
-# DATABASE = "graphs/sa1_dzn_region10_2019/region10_gccsa_SA1_DZN_2016_vic.db"
-# originsfile = "graphs/sa1_dzn_region10_2019/sa1_2016_network_snapped_pwc_region10.csv"
-# destsfile = "graphs/sa1_dzn_region10_2019/dzn_2016_network_snapped_centroids_region10.csv"
-# TABLE_NAME = "od_4modes_7_45am"
-# id_names = ['SA1_MAINCO','DZN_CODE_2016']
-# latlon_names =['Y','X']
+
 
 import argparse, time, os.path, sys, itertools
 from org.opentripplanner.scripting.api import OtpsEntryPoint
@@ -55,6 +39,58 @@ import csv
 from java.lang import Class
 from java.sql  import DriverManager, SQLException
 from com.ziclix.python.sql import zxJDBC
+
+# To debug using the server you can run:
+# java -Xmx2G -jar otp-0.19.0-shaded.jar --build ./graphs/sa1_dzn_region06_2019 --inMemory
+# and in browser:
+# http://localhost:8080/otp/routers/default/plan?fromPlace=-16.89439878,145.7161692&toPlace=-16.89863955,145.7152701&time=7:45am&date=10-16-2019&mode=TRANSIT,WALK&maxWalkDistance=25000&arriveBy=false 
+# http://localhost:8080/otp/routers/default/isochrone?fromPlace=-16.89439878,145.7161692&mode=WALK,TRANSIT&date=10-16-2019&time=7:45am&maxWalkDistance=500&cutoffSec=1800&cutoffSec=3600
+# http://localhost:8080/otp/routers/default/isochrone?fromPlace=-16.89439878,145.7161692&mode=WALK,TRANSIT&date=10-16-2019&time=7:45am&arriveBy=8:45am&cutoffSec=1800&cutoffSec=3600
+#
+# To debug interactively, you can run from bash the otp directory the following:
+# DIR="."
+# OTPJAR=${DIR}/otp-0.19.0-shaded.jar
+# JYTHONJAR=${DIR}/jython-standalone-2.7.0.jar
+# SQLITEJAR=${DIR}/sqlite-jdbc-3.23.1.jar
+#
+# java  -Duser.timezone=Australia/Melbourne -cp $OTPJAR:$JYTHONJAR:$SQLITEJAR org.python.util.jython
+#  
+# When running code interactively, don't enter the  parser.parse_args() function - it will crash the script
+# The following alternate variable definitions may be of use:
+# 
+# region = '09'
+# DATABASE = "graphs/sa1_dzn_region{region}_2019/region{region}_gccsa_SA1_DZN_2016_vic.db".format(region=region)
+# originsfile = "graphs/sa1_dzn_region{region}_2019/sa1_2016_network_snapped_pwc_region{region}.csv".format(region=region)
+# destsfile = "graphs/sa1_dzn_region{region}_2019/dzn_2016_network_snapped_centroids_region{region}.csv".format(region=region)
+# TABLE_NAME = "od_4modes_7_45am"
+# id_names = ['SA1_MAINCO','DZN_CODE_2016']
+# latlon_names =['Y','X']
+# proj_name = 'sa1_dzn_region{region}_2019'.format(region=region)
+# orig_id =id_names[0]
+# dest_id =id_names[1]
+# lat     =latlon_names[0]
+# lon     =latlon_names[1]
+# JDBC_URL    = "jdbc:sqlite:%s"  % DATABASE
+# JDBC_DRIVER = "org.sqlite.JDBC"
+# otp = OtpsEntryPoint.fromArgs(['--graphs', 'graphs', '--router', proj_name])
+# start_time = time.time()
+# router = otp.getRouter(proj_name)
+# req = otp.createRequest()
+# req.setMaxTimeSec(7200)
+# req.setMaxWalkDistance(500)
+# origins = otp.loadCSVPopulation(originsfile, lat, lon)
+# dests   = otp.loadCSVPopulation(destsfile, lat, lon)
+# modes = ['WALK','BICYCLE','CAR','WALK,BUS','WALK,TRAM','WALK,RAIL','WALK,TRANSIT']
+# run_once = ['WALK','BICYCLE','CAR']
+# departure_time = datetime.strptime('2019-10-16-07:45:00', "%Y-%m-%d-%H:%M:%S")
+# dep = departure_time
+# req.setOrigin(-41.4283131431752,147.135207900963)
+# transport_mode = 'WALK'
+# req.setModes(transport_mode)
+# spt = router.plan(req)
+# results = spt.eval(dests)
+# print(results)
+
 
 def valid_date(s):
     try:
@@ -245,23 +281,8 @@ def populateTable(dbConn, feedstock, sql_zxJDBC = False):
     
 #################################################################################    
 
-# Instantiate an OtpsEntryPoint
-otp = OtpsEntryPoint.fromArgs(['--graphs', 'graphs', '--router', proj_name])
-
 # Start timing the code
 start_time = time.time()
-
-# Get the default router
-router = otp.getRouter(proj_name)
-
-# Create a default request for a given time
-req = otp.createRequest()
-
-# set a limit to maximum travel time (seconds) 
-req.setMaxTimeSec(args.max_time)
-
-# set maximum walking distance
-req.setMaxWalkDistance(args.max_walking_distance)
 
 # Instantiate zxJDBC SQL connection
 dbConn = getConnection(JDBC_URL,JDBC_DRIVER, True)
@@ -358,9 +379,16 @@ dest_id = args.id_names[1]
 lat = args.latlon_names[0]
 lon = args.latlon_names[1]
 
+
+# Instantiate an OtpsEntryPoint
+otp = OtpsEntryPoint.fromArgs(['--graphs', 'graphs', '--router', proj_name])
+
+# Load origins and destinations
 origins = otp.loadCSVPopulation(updated_csv, lat, lon)
 dests   = otp.loadCSVPopulation(args.destsfile, lat, lon)
 
+# Get the default router
+router = otp.getRouter(proj_name)
 
 # Process modes for OTP
 if args.combinations is False:
@@ -403,16 +431,16 @@ if args.duration_reps[0] > 0:
     while new_datetime < end_datetime:
         new_datetime += timedelta(hours=args.duration_reps[1])
         date_list.append(new_datetime)
+        
+req = otp.createRequest()
+req.setMaxTimeSec(args.max_time)
+req.setMaxWalkDistance(args.max_walking_distance)
 
-i = 0        
+print(args.matching)
+print(modes)
+i = 0       
 for dep in date_list:
     # Set departure time
-    req.setDateTime(args.departure_time.year,
-                    args.departure_time.month,
-                    args.departure_time.day,
-                    args.departure_time.hour,
-                    args.departure_time.minute,
-                    args.departure_time.second)
     r_dep_time    = dep.isoformat()
     # One-to-one matching
     if args.matching == 'one-to-one':
@@ -422,6 +450,7 @@ for dep in date_list:
             index += 1
             req.setOrigin(origin)
             r_origin = origin.getStringData(orig_id)
+            req.setDateTime(dep.year,dep.month,dep.day,dep.hour,dep.minute,dep.second)
             print("Processing dep {}: origin {}...".format(r_dep_time,r_origin)),
             set = []
             for transport_mode in modes:
@@ -430,12 +459,11 @@ for dep in date_list:
                     req.setModes(transport_mode)
                     
                     spt = router.plan(req)
-                    
                     if spt is None: 
                         # print "SPT is None"
                         continue
                     
-                    # Evaluate the SPT for all points
+                    # Evaluate the SPT for destination
                     result = spt.eval(dest)
                     # Add a new row of result in the CSV output
                     if result is not None:
@@ -446,8 +474,43 @@ for dep in date_list:
                             r_time_mins   = result.getTime()/60.0   
                             set.append((r_origin, r_destination, r_dep_time, r_mode, r_dist_m, r_time_mins))
             populateTable(dbConn, set)
+            print(set)
             print("Completed in %g seconds" % (time.time() - set_time))
   
+    # # One-to-many matching
+    # if args.matching == 'one-to-many':
+        # for index, origin in enumerate(origins):
+            # set_time = time.time()            
+            # req.setOrigin(origin)
+            # r_origin = origin.getStringData(orig_id)
+            # print("Processing dep {}: origin {}...".format(r_dep_time,r_origin)),
+            # set = []
+            # for transport_mode in modes:
+                # # if (transport_mode not in run_once) or (transport_mode in run_once and i == 0):
+                    # # define transport mode
+                    # req.setModes(transport_mode)
+                    # spt = router.plan(req)
+                    # if spt is None: 
+                        # print "SPT is None"
+                        # continue
+                    
+                    # # Evaluate the SPT for all points
+                    # results = spt.eval(dests)
+                    # print(results)
+                    # # Add a new row of result in the CSV output
+                    # for result in results:
+                        # # if (result.getTime() is not None) and (0 <= result.getTime() <=args.max_time) :
+                            # r_destination = result.getIndividual().getStringData(dest_id)
+                            # r_mode        = '"{}"'.format(transport_mode)
+                            # r_dist_m      = int(0 if result.getWalkDistance() is None else result.getWalkDistance())
+                            # r_time_mins   = result.getTime()/60.0   
+                            # set.append((r_origin, r_destination, r_dep_time, r_mode, r_dist_m, r_time_mins))
+                            # print(set)
+                            # print("test")
+            # # print(set)
+            # populateTable(dbConn, set)
+            # print("Completed in %g seconds" % (time.time() - set_time))
+    # i+=1
     # One-to-many matching
     if args.matching == 'one-to-many':
         all_dests = []
