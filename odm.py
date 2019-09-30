@@ -39,6 +39,7 @@ import csv
 from java.lang import Class
 from java.sql  import DriverManager, SQLException
 from com.ziclix.python.sql import zxJDBC
+from java.text import SimpleDateFormat
 
 # To debug using the server you can run:
 # java -Xmx2G -jar otp-0.19.0-shaded.jar --build ./graphs/sa1_dzn_region06_2019 --inMemory
@@ -74,23 +75,23 @@ from com.ziclix.python.sql import zxJDBC
 # JDBC_DRIVER = "org.sqlite.JDBC"
 # otp = OtpsEntryPoint.fromArgs(['--graphs', 'graphs', '--router', proj_name])
 # start_time = time.time()
+# departure_time = datetime.strptime('2019-10-16-07:45:00', "%Y-%m-%d-%H:%M:%S")
+# dep = departure_time
 # router = otp.getRouter(proj_name)
 # req = otp.createRequest()
+# req.setDateTime(dep)
 # req.setMaxTimeSec(7200)
 # req.setMaxWalkDistance(500)
 # origins = otp.loadCSVPopulation(originsfile, lat, lon)
 # dests   = otp.loadCSVPopulation(destsfile, lat, lon)
 # modes = ['WALK','BICYCLE','CAR','WALK,BUS','WALK,TRAM','WALK,RAIL','WALK,TRANSIT']
 # run_once = ['WALK','BICYCLE','CAR']
-# departure_time = datetime.strptime('2019-10-16-07:45:00', "%Y-%m-%d-%H:%M:%S")
-# dep = departure_time
 # req.setOrigin(-41.4283131431752,147.135207900963)
 # transport_mode = 'WALK'
 # req.setModes(transport_mode)
 # spt = router.plan(req)
 # results = spt.eval(dests)
 # print(results)
-
 
 def valid_date(s):
     try:
@@ -105,7 +106,7 @@ def valid_path(arg):
         raise argparse.ArgumentTypeError(msg)
     else:
         return arg   
-        
+  
 def valid_duration_reps(arg):
     print(arg)
     if arg[0]<0:
@@ -122,6 +123,7 @@ def valid_duration_reps(arg):
         
 # Parse input arguments
 parser = argparse.ArgumentParser(description='Generate origin destination matrix')
+# Note that the time_zone argument is not implemented
 parser.add_argument('--departure_time',
                     help='departure time - format YYYY-MM-DD-HH:MM:SS',
                     required=True,
@@ -425,23 +427,25 @@ parameter_file.close()
 # start_date = datetime.now()
 start_datetime = args.departure_time
 date_list = [start_datetime]
-if args.duration_reps[0] > 0:
-    end_datetime = start_datetime + timedelta(hours=args.duration_reps[0])
-    new_datetime = start_datetime
-    while new_datetime < end_datetime:
-        new_datetime += timedelta(hours=args.duration_reps[1])
-        date_list.append(new_datetime)
+# if args.duration_reps[0] > 0:
+    # end_datetime = start_datetime + timedelta(hours=args.duration_reps[0])
+    # new_datetime = start_datetime
+    # while new_datetime < end_datetime:
+        # new_datetime += timedelta(hours=args.duration_reps[1])
+        # date_list.append(new_datetime)
         
 req = otp.createRequest()
-req.setMaxTimeSec(args.max_time)
 req.setMaxWalkDistance(args.max_walking_distance)
 
 print(args.matching)
 print(modes)
 i = 0       
 for dep in date_list:
-    # Set departure time
+    # req.setDateTime(dep.year,dep.month,dep.day,dep.hour,dep.minute,dep.second)
+    # req.setDateTime(dep)
+    req.setMaxTimeSec(args.max_time)
     r_dep_time    = dep.isoformat()
+    # r_dep_time    = str(dep)
     # One-to-one matching
     if args.matching == 'one-to-one':
         index = 0;
@@ -450,7 +454,6 @@ for dep in date_list:
             index += 1
             req.setOrigin(origin)
             r_origin = origin.getStringData(orig_id)
-            req.setDateTime(dep.year,dep.month,dep.day,dep.hour,dep.minute,dep.second)
             print("Processing dep {}: origin {}...".format(r_dep_time,r_origin)),
             set = []
             for transport_mode in modes:
@@ -477,45 +480,11 @@ for dep in date_list:
             print(set)
             print("Completed in %g seconds" % (time.time() - set_time))
   
-    # # One-to-many matching
-    # if args.matching == 'one-to-many':
-        # for index, origin in enumerate(origins):
-            # set_time = time.time()            
-            # req.setOrigin(origin)
-            # r_origin = origin.getStringData(orig_id)
-            # print("Processing dep {}: origin {}...".format(r_dep_time,r_origin)),
-            # set = []
-            # for transport_mode in modes:
-                # # if (transport_mode not in run_once) or (transport_mode in run_once and i == 0):
-                    # # define transport mode
-                    # req.setModes(transport_mode)
-                    # spt = router.plan(req)
-                    # if spt is None: 
-                        # print "SPT is None"
-                        # continue
-                    
-                    # # Evaluate the SPT for all points
-                    # results = spt.eval(dests)
-                    # print(results)
-                    # # Add a new row of result in the CSV output
-                    # for result in results:
-                        # # if (result.getTime() is not None) and (0 <= result.getTime() <=args.max_time) :
-                            # r_destination = result.getIndividual().getStringData(dest_id)
-                            # r_mode        = '"{}"'.format(transport_mode)
-                            # r_dist_m      = int(0 if result.getWalkDistance() is None else result.getWalkDistance())
-                            # r_time_mins   = result.getTime()/60.0   
-                            # set.append((r_origin, r_destination, r_dep_time, r_mode, r_dist_m, r_time_mins))
-                            # print(set)
-                            # print("test")
-            # # print(set)
-            # populateTable(dbConn, set)
-            # print("Completed in %g seconds" % (time.time() - set_time))
-    # i+=1
     # One-to-many matching
     if args.matching == 'one-to-many':
-        all_dests = []
-        for dest in dests:
-            all_dests.append(dest.getStringData(dest_id))
+        # all_dests = []
+        # for dest in dests:
+            # all_dests.append(dest.getStringData(dest_id))
         
         for index, origin in enumerate(origins):
             set_time = time.time()

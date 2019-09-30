@@ -25,7 +25,7 @@ usage: $(basename $0) [options]
     -d       Specify project directory (req'd); files are assumed to be located here.  
              This is a subfolder of ./graphs/ 
     -p       Specify pbf file for osm data; assumed within project dir.  
-    -t       Specify GTFS zip file name; assumed within project dir
+    -t       Specify time zone
     -x       Build the graph
     -w ARGS  Build a origin-destination matrix (CSV) using odm.py to drive OTP.
              The following arguments used to drive the analysis are passed to odm.py in quotes:
@@ -118,7 +118,7 @@ getOptions() {
       v) VERBOSE=1 ;;
       d) PROJ_NAME=${OPTARG}; PROJ_DIR=${DIR}/graphs/${OPTARG};;
       p) OSM=${PROJ_DIR}/${OPTARG};;
-      t) GTFSZIP=${PROJ_DIR}/${OPTARG};;
+      t) TIME_ZONE=${OPTARG};;
       r) RUN_OTP=1 ;;
       w) CALCULATE_ODM=1 ; ODM_ARGS=$OPTARG ;;
       x) BUILD_GRAPH=1 ;;
@@ -178,7 +178,7 @@ calculateODM() {
     if [ $VERBOSE -eq 1 ] ; then echo $CMD; fi; eval $CMD
   fi
 
-  CMD="java  -Duser.timezone=Australia/Melbourne -cp $OTPJAR:$JYTHONJAR:$SQLITEJAR org.python.util.jython $ODM_SCRIPT $ODM_ARGS --proj_dir $PROJ_DIR"
+  CMD="java  -Duser.timezone=$TIME_ZONE -cp $OTPJAR:$JYTHONJAR:$SQLITEJAR org.python.util.jython $ODM_SCRIPT $ODM_ARGS --proj_dir $PROJ_DIR"
   CMD="$CMD --cmd '''$CMD'''"
   echo $CMD
   if [ $VERBOSE -eq 1 ] ; then echo $CMD; fi; eval $CMD
