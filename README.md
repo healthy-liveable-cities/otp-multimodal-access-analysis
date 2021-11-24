@@ -9,6 +9,8 @@ The ./run-otp.sh script is a wrapper function for running OpenTripPlanner <http:
 
 This script has been modified from the original version to seek out project resources in a specified directory in the ./graphs/ path.  In this project directory you would locate your GTFS, OpenStreetMap and (optionally) GeoTiff elevation data.
 
+The OpenTripPlanner implementation was adapted by Carl Higgs from original code authored Dr Dhirendra Singh through the 'Decision making for lifetime affordable and tenable city housing' project under an ARC Linkage grant, LP130100008, and whose contribution of the code for this project we gratefully acknowledge.  
+
 ## Usage
 
 usage: run-otp.sh [options]
